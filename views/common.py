@@ -128,9 +128,11 @@ def safe_call(fn, *a, **kw):
 # colour tokens per mode (Streamlit's own widgets follow [theme.light] / [theme.dark] in .streamlit/config.toml)
 TOKENS = {
     "light": {"text": "#0F172A", "muted": "#475569", "subtle": "#64748B", "card": "#FFFFFF", "border": "#DCE3EE",
-              "hero": "#F8FAFC", "accent": "#1D4ED8", "pill": "#FFFFFF", "pill-border": "#CBD5E1", "body": "#334155"},
+              "hero": "#F8FAFC", "accent": "#1D4ED8", "pill": "#FFFFFF", "pill-border": "#CBD5E1", "body": "#334155",
+              "sidebar": "#0B1B36"},
     "dark": {"text": "#E2E8F0", "muted": "#A3B1C6", "subtle": "#94A3B8", "card": "#131C2E", "border": "#25324A",
-             "hero": "#111A2C", "accent": "#93C5FD", "pill": "#131C2E", "pill-border": "#334155", "body": "#CBD5E1"},
+             "hero": "#111A2C", "accent": "#93C5FD", "pill": "#131C2E", "pill-border": "#334155", "body": "#CBD5E1",
+             "sidebar": "#070D19"},
 }
 THEME_CSS = """
 <style>
@@ -143,6 +145,9 @@ THEME_CSS = """
 .ax-theme a:focus-visible { outline: 3px solid #93C5FD; outline-offset: 2px; }
 .st-key-ax_theme_store { display: none; }
 [data-testid="stSidebarUserContent"] { padding-bottom: 3.5rem; }   /* keep the last sidebar line clear of the toggle */
+/* sidebar text fades out under the toggle instead of being cut by it */
+[data-testid="stSidebar"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 58px;
+  background: linear-gradient(to bottom, transparent, var(--ax-sidebar) 55%%); pointer-events: none; z-index: 2; }
 [data-testid="stGraphVizChart"] svg { %s }
 </style>
 """
@@ -179,7 +184,6 @@ def theme_toggle(page_paths: list[str]):
     embed_options=light_theme|dark_theme option (this browser tab only), and the choice is remembered in this
     browser for every page, so it survives reloads."""
     import json as _json
-    import streamlit.components.v1 as components
     from html import escape
     from urllib.parse import urlencode
     mode = theme_mode()
@@ -192,7 +196,8 @@ def theme_toggle(page_paths: list[str]):
     st.markdown(f'<nav class="ax-theme" aria-label="Colour theme">{"".join(links)}</nav>', unsafe_allow_html=True)
     # Streamlit hides embed_options from st.query_params, so the (hidden) script checks the address itself
     with st.container(key="ax_theme_store"):
-        components.html(REMEMBER_THEME_JS % _json.dumps([p for p in page_paths if p]), height=0)
+        # our own constant script (no user input): st.iframe runs it same-origin, like Streamlit's settings menu
+        st.iframe(REMEMBER_THEME_JS % _json.dumps([p for p in page_paths if p]), height=1)
 
 
 def inject_css():
