@@ -134,7 +134,7 @@ TOKENS = {
 }
 THEME_CSS = """
 <style>
-.ax-theme { position: fixed; top: .55rem; right: 7.5rem; z-index: 999991; display: flex; gap: 2px; padding: 2px;
+.ax-theme { position: fixed; top: .55rem; right: 9rem; z-index: 999991; display: flex; gap: 2px; padding: 2px;
   border-radius: 999px; border: 1px solid var(--ax-pill-border); background: var(--ax-pill);
   box-shadow: 0 1px 3px rgba(15,23,42,.12); font-size: .8rem; }
 .ax-theme a { padding: .2rem .65rem; border-radius: 999px; text-decoration: none !important; color: var(--ax-muted);
