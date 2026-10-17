@@ -7,7 +7,7 @@ import streamlit as st
 
 from adaptix.config import get_settings
 from views import chaos, demo, drift, evidence, health, localdemo, monitoring, overview, recovery, review, tools
-from views.common import ROOT, api, inject_css, local_demo_enabled, safe_call
+from views.common import ROOT, api, inject_css, local_demo_enabled, safe_call, theme_toggle
 
 st.set_page_config(page_title="ADAPTIX · Autonomous API Resilience", page_icon=":material/autorenew:",
                    layout="wide", initial_sidebar_state="expanded")
@@ -41,6 +41,7 @@ pages = {
 }
 if LOCAL:   # local-only page: present only when ADAPTIX_LOCAL_DEMO=1 is set on this machine
     pages["localdemo"] = P(localdemo.render, title="Local Demo Lab", icon=":material/science:", url_path="local-demo")
+theme_toggle([p.url_path for p in pages.values()])
 st.session_state["_pages"] = pages
 nav = st.navigation({
     "Monitor and repair": [pages[k] for k in ("overview", "monitoring", "tools", "drift", "recovery", "evidence")],

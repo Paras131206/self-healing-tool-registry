@@ -305,3 +305,21 @@ def test_patch_story_panel_resends_the_original_request():
         assert any("Succeeded with tool v2" in s.value for s in at.success)
     finally:
         ld.api = real_api
+
+
+def test_light_dark_toggle_is_on_every_page_and_keeps_the_current_view():
+    from views.common import TOKENS
+    assert set(TOKENS) == {"light", "dark"} and TOKENS["light"].keys() == TOKENS["dark"].keys()
+    for page in ("overview", "review", "health"):
+        at = _page(page)
+        assert not at.exception, at.exception
+        nav = next(m.value for m in at.markdown if 'class="ax-theme"' in m.value)
+        assert 'href="?embed_options=light_theme"' in nav and 'href="?embed_options=dark_theme"' in nav
+        assert 'target="_self"' in nav and 'aria-current="true"' in nav           # one mode marked as current
+    at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=60)
+    at.query_params["view"] = "review"
+    at.run()
+    nav = next(m.value for m in at.markdown if 'class="ax-theme"' in m.value)
+    assert "view=review&amp;embed_options=dark_theme" in nav                    # switching keeps the review page
+    cfg = (ROOT / ".streamlit" / "config.toml").read_text()
+    assert "[theme.light]" in cfg and "[theme.dark]" in cfg and "\nbase =" not in cfg

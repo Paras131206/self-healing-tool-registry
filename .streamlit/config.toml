@@ -1,24 +1,44 @@
+# Shared look; colours are set per mode below. With both [theme.light] and [theme.dark] defined, Streamlit
+# follows the visitor's system preference, and the Light / Dark toggle (top-right corner) overrides it.
 [theme]
-base = "light"
 primaryColor = "#1D4ED8"
-backgroundColor = "#F5F7FB"
-secondaryBackgroundColor = "#FFFFFF"
-textColor = "#0F172A"
 linkColor = "#1D4ED8"
-borderColor = "#DCE3EE"
 showWidgetBorder = true
 baseFontSize = 16
 baseRadius = "0.6rem"
 buttonRadius = "0.5rem"
 headingFontWeights = [750, 700, 650, 600, 600, 600]
 codeFontSize = "0.85rem"
+
+[theme.light]
+primaryColor = "#1D4ED8"
+linkColor = "#1D4ED8"
+backgroundColor = "#F5F7FB"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#0F172A"
+borderColor = "#DCE3EE"
 dataframeHeaderBackgroundColor = "#EEF2F8"
 
-[theme.sidebar]
+[theme.light.sidebar]
 backgroundColor = "#0B1B36"
 secondaryBackgroundColor = "#13284D"
 textColor = "#E2E8F0"
 borderColor = "#1E3A66"
+
+[theme.dark]
+primaryColor = "#60A5FA"
+linkColor = "#93C5FD"
+backgroundColor = "#0B1220"
+secondaryBackgroundColor = "#131C2E"
+textColor = "#E2E8F0"
+borderColor = "#25324A"
+dataframeHeaderBackgroundColor = "#1A2539"
+
+[theme.dark.sidebar]
+backgroundColor = "#070D19"
+secondaryBackgroundColor = "#0F1A2E"
+textColor = "#E2E8F0"
+borderColor = "#1B2A44"
 
 [client]
 toolbarMode = "minimal"

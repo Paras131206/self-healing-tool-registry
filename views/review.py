@@ -29,20 +29,20 @@ STAGES = [("A", "request", "Execute the original operation", "Send the caller's 
           ("J", "rollback", "Roll back or block", "Failed verification rolls back; unsafe changes stop safely.")]
 CSS = """
 <style>
-.rv-hero { padding: 1.4rem 1.5rem; border:1px solid #DCE3EE; border-radius:14px; background:#F8FAFC; }
-.rv-hero h1 { font-size:2rem; line-height:1.2; margin:.2rem 0 .5rem 0; color:#0F172A; }
-.rv-hero p { color:#334155; font-size:1.02rem; max-width: 820px; }
+.rv-hero { padding: 1.4rem 1.5rem; border:1px solid var(--ax-border); border-radius:14px; background:var(--ax-hero); }
+.rv-hero h1 { font-size:2rem; line-height:1.2; margin:.2rem 0 .5rem 0; color:var(--ax-text); }
+.rv-hero p { color:var(--ax-body); font-size:1.02rem; max-width: 820px; }
 .rv-nav a, .rv-cta a { display:inline-block; margin:.15rem .35rem .15rem 0; padding:.35rem .8rem; border-radius:999px;
-  border:1px solid #CBD5E1; color:#0F172A; text-decoration:none; font-size:.88rem; background:#fff; }
+  border:1px solid var(--ax-pill-border); color:var(--ax-text); text-decoration:none; font-size:.88rem; background:var(--ax-pill); }
 .rv-cta a.primary { background:#1D4ED8; border-color:#1D4ED8; color:#fff; }
 .rv-nav a:focus-visible, .rv-cta a:focus-visible { outline:3px solid #93C5FD; outline-offset:2px; }
 .rv-flow { list-style:none; padding:0; margin:.4rem 0 1rem 0; display:grid; gap:.5rem;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-.rv-step { border:1px solid #DCE3EE; border-radius:10px; padding:.5rem .6rem; background:#fff; font-size:.9rem;
-  color:#0F172A; }
-.rv-step b { color:#1D4ED8; margin-right:.25rem; }
+.rv-step { border:1px solid var(--ax-border); border-radius:10px; padding:.5rem .6rem; background:var(--ax-card); font-size:.9rem;
+  color:var(--ax-text); }
+.rv-step b { color:var(--ax-accent); margin-right:.25rem; }
 .rv-tag { display:inline-block; padding:.05rem .5rem; border-radius:6px; font-size:.75rem; font-weight:650;
-  background:#F1F5F9; color:#334155; border:1px solid #CBD5E1; }
+  background:var(--ax-card); color:var(--ax-body); border:1px solid var(--ax-pill-border); }
 </style>
 """
 

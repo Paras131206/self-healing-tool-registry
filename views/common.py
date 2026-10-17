@@ -36,19 +36,19 @@ STAGE_ICON = {"request": "send", "classify": "category", "discover": "travel_exp
 CSS = """
 <style>
 .block-container { padding-top: 1.6rem; max-width: 1280px; }
-.ax-eyebrow { color:#1D4ED8; font-weight:700; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; }
-.ax-title { font-size:1.75rem; font-weight:750; color:#0F172A; margin:.1rem 0 .2rem 0; }
-.ax-sub { color:#475569; font-size:.98rem; margin-bottom:1rem; max-width: 920px; }
+.ax-eyebrow { color:var(--ax-accent); font-weight:700; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; }
+.ax-title { font-size:1.75rem; font-weight:750; color:var(--ax-text); margin:.1rem 0 .2rem 0; }
+.ax-sub { color:var(--ax-muted); font-size:.98rem; margin-bottom:1rem; max-width: 920px; }
 .ax-badge { display:inline-block; padding:.12rem .55rem; border-radius:999px; font-size:.78rem; font-weight:650;
             border:1px solid transparent; }
 .ax-sim { background:#FEF3C7; color:#92400E; border-color:#FCD34D; }
-.ax-card { background:#fff; border:1px solid #DCE3EE; border-radius:12px; padding:1rem 1.1rem; height:100%; }
-.ax-kpi .l { color:#475569; font-size:.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
-.ax-kpi .v { color:#0F172A; font-size:1.9rem; font-weight:750; line-height:1.2; margin:.2rem 0; }
-.ax-kpi .d { color:#64748B; font-size:.85rem; }
+.ax-card { background:var(--ax-card); border:1px solid var(--ax-border); border-radius:12px; padding:1rem 1.1rem; height:100%; }
+.ax-kpi .l { color:var(--ax-muted); font-size:.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+.ax-kpi .v { color:var(--ax-text); font-size:1.9rem; font-weight:750; line-height:1.2; margin:.2rem 0; }
+.ax-kpi .d { color:var(--ax-subtle); font-size:.85rem; }
 .ax-grid { display:grid; gap:.8rem; grid-template-columns: repeat(var(--cols), minmax(0,1fr)); margin:.2rem 0 1rem 0; }
 @media (max-width: 900px) { .ax-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-.ax-step { border-left:3px solid #DCE3EE; padding:.15rem 0 .55rem .9rem; margin-left:.4rem; }
+.ax-step { border-left:3px solid var(--ax-border); padding:.15rem 0 .55rem .9rem; margin-left:.4rem; }
 .ax-diff-add { background:#ECFDF5; } .ax-diff-del { background:#FEF2F2; } .ax-diff-chg { background:#FFFBEB; }
 [data-testid="stSidebar"] .stCaption, [data-testid="stSidebar"] small { color:#93A4C3 !important; }
 </style>
@@ -125,8 +125,82 @@ def safe_call(fn, *a, **kw):
     return None
 
 
+# colour tokens per mode (Streamlit's own widgets follow [theme.light] / [theme.dark] in .streamlit/config.toml)
+TOKENS = {
+    "light": {"text": "#0F172A", "muted": "#475569", "subtle": "#64748B", "card": "#FFFFFF", "border": "#DCE3EE",
+              "hero": "#F8FAFC", "accent": "#1D4ED8", "pill": "#FFFFFF", "pill-border": "#CBD5E1", "body": "#334155"},
+    "dark": {"text": "#E2E8F0", "muted": "#A3B1C6", "subtle": "#94A3B8", "card": "#131C2E", "border": "#25324A",
+             "hero": "#111A2C", "accent": "#93C5FD", "pill": "#131C2E", "pill-border": "#334155", "body": "#CBD5E1"},
+}
+THEME_CSS = """
+<style>
+.ax-theme { position: fixed; top: .55rem; right: 7.5rem; z-index: 999991; display: flex; gap: 2px; padding: 2px;
+  border-radius: 999px; border: 1px solid var(--ax-pill-border); background: var(--ax-pill);
+  box-shadow: 0 1px 3px rgba(15,23,42,.12); font-size: .8rem; }
+.ax-theme a { padding: .2rem .65rem; border-radius: 999px; text-decoration: none !important; color: var(--ax-muted);
+  font-weight: 600; line-height: 1.4; }
+.ax-theme a[aria-current="true"] { background: var(--ax-accent); color: var(--ax-pill) !important; }
+.ax-theme a:focus-visible { outline: 3px solid #93C5FD; outline-offset: 2px; }
+@media (max-width: 640px) { .ax-theme { right: 3.2rem; } .ax-theme a span { display: none; } }
+.st-key-ax_theme_store { display: none; }
+[data-testid="stGraphVizChart"] svg { %s }
+</style>
+"""
+
+
+def theme_mode() -> str:
+    """The theme this browser is showing now ("light" or "dark"), as reported by Streamlit's frontend."""
+    try:
+        return "dark" if (st.context.theme.type or "light") == "dark" else "light"
+    except Exception:
+        return "light"
+
+
+REMEMBER_THEME_JS = """<script>
+// Remember the choice the way Streamlit's own Settings menu does: localStorage "stActiveTheme-<page path>-v2"
+// = "Light" | "Dark", for every page of this app, in this browser only. Nothing is sent anywhere.
+try {
+  const w = window.parent, q = new URLSearchParams(w.location.search).get("embed_options") || "";
+  const want = q.includes("dark_theme") ? "Dark" : q.includes("light_theme") ? "Light" : null;
+  if (want) {
+    const pages = %s;
+    let path = w.location.pathname.replace(/\\/$/, "");
+    for (const u of pages) { if (u && path.endsWith("/" + u)) { path = path.slice(0, -(u.length + 1)); break; } }
+    for (const u of [""].concat(pages)) {
+      w.localStorage.setItem("stActiveTheme-" + path + "/" + u + "-v2", JSON.stringify(want));
+    }
+  }
+} catch (e) {}
+</script>"""
+
+
+def theme_toggle(page_paths: list[str]):
+    """Light / Dark switch pinned to the top-right corner. A click reloads the page with Streamlit's own
+    embed_options=light_theme|dark_theme option (this browser tab only), and the choice is remembered in this
+    browser for every page, so it survives reloads."""
+    import json as _json
+    import streamlit.components.v1 as components
+    from html import escape
+    from urllib.parse import urlencode
+    mode = theme_mode()
+    params = {k: v for k, v in st.query_params.to_dict().items() if k != "embed_options"}
+    links = []
+    for key, label, icon in (("light", "Light", "☀"), ("dark", "Dark", "☾")):
+        href = "?" + urlencode({**params, "embed_options": f"{key}_theme"})
+        links.append(f'<a href="{escape(href)}" target="_self" aria-current="{str(mode == key).lower()}" '
+                     f'title="Switch to {label.lower()} mode">{icon}<span> {label}</span></a>')
+    st.markdown(f'<nav class="ax-theme" aria-label="Colour theme">{"".join(links)}</nav>', unsafe_allow_html=True)
+    # Streamlit hides embed_options from st.query_params, so the (hidden) script checks the address itself
+    with st.container(key="ax_theme_store"):
+        components.html(REMEMBER_THEME_JS % _json.dumps([p for p in page_paths if p]), height=0)
+
+
 def inject_css():
-    st.markdown(CSS, unsafe_allow_html=True)
+    mode = theme_mode()
+    tokens = "".join(f"--ax-{k}:{v};" for k, v in TOKENS[mode].items())
+    st.markdown(f"<style>:root{{{tokens}}}</style>" + CSS, unsafe_allow_html=True)
+    st.markdown(THEME_CSS % ("filter: invert(.88) hue-rotate(180deg);" if mode == "dark" else ""),
+                unsafe_allow_html=True)
 
 
 def header(eyebrow: str, title: str, sub: str = ""):
