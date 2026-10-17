@@ -134,7 +134,7 @@ TOKENS = {
 }
 THEME_CSS = """
 <style>
-.ax-theme { position: fixed; top: 17px; left: 176px; z-index: 1000002; display: flex; gap: 2px; padding: 2px;
+.ax-theme { position: fixed; bottom: 16px; left: 20px; z-index: 1000002; display: flex; gap: 2px; padding: 2px;
   border-radius: 999px; border: 1px solid rgba(226,232,240,.18); background: rgba(15,26,46,.92); }
 .ax-theme a { width: 26px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
   border-radius: 999px; text-decoration: none !important; color: #CBD5E1 !important; font-size: .95rem; line-height: 1; }
@@ -142,6 +142,7 @@ THEME_CSS = """
 .ax-theme a[aria-current="true"] { background: #2563EB; color: #FFFFFF !important; }
 .ax-theme a:focus-visible { outline: 3px solid #93C5FD; outline-offset: 2px; }
 .st-key-ax_theme_store { display: none; }
+[data-testid="stSidebarUserContent"] { padding-bottom: 3.5rem; }   /* keep the last sidebar line clear of the toggle */
 [data-testid="stGraphVizChart"] svg { %s }
 </style>
 """
@@ -174,7 +175,7 @@ try {
 
 
 def theme_toggle(page_paths: list[str]):
-    """Light / Dark switch pinned to the top-right corner. A click reloads the page with Streamlit's own
+    """Light / Dark switch pinned to the bottom-left corner. A click reloads the page with Streamlit's own
     embed_options=light_theme|dark_theme option (this browser tab only), and the choice is remembered in this
     browser for every page, so it survives reloads."""
     import json as _json
