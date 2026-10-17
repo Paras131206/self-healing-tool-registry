@@ -6,7 +6,8 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 ROOT = Path(__file__).resolve().parent.parent
-PAGES = ["overview", "monitoring", "tools", "drift", "recovery", "evidence", "demo", "chaos", "health", "review"]
+PAGES = ["overview", "monitoring", "tools", "drift", "recovery", "evidence", "demo", "chaos", "health", "review",
+         "multichange"]
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +51,8 @@ def test_navigation_titles():
     src = (ROOT / "app.py").read_text()
     titles = re.findall(r'P\([^)]*?title="([^"]+)"', src)
     assert titles == ["Overview", "API Registry", "Tool Registry", "Schema Drift Explorer", "Recovery Center",
-                      "Evidence & Scorecard", "Drift Demo", "Simulation Lab", "System Health", "Local Demo Lab"]
+                      "Evidence & Scorecard", "Drift Demo", "Simulation Lab", "Multi-Change Lab", "System Health",
+                      "Local Demo Lab"]
     assert 'if LOCAL:' in src and "link=review.review_link(" in src and "REPO_URL" not in src   # logo -> review page
     assert "Product Review" not in src and 'st.query_params.get("view") == review.VIEW' in src     # not a nav page
     assert "Product overview</a>" in src and 'f"?view={review.VIEW}"' in src                         # sidebar link
@@ -324,3 +326,30 @@ def test_light_dark_toggle_is_on_every_page_and_keeps_the_current_view():
     assert "view=review&amp;embed_options=dark_theme" in nav                    # switching keeps the review page
     cfg = (ROOT / ".streamlit" / "config.toml").read_text()
     assert "[theme.light]" in cfg and "[theme.dark]" in cfg and "\nbase =" not in cfg
+
+
+def test_multichange_lab_states_reflect_what_actually_ran():
+    at = _page("multichange")
+    assert not at.exception, at.exception
+    assert "127.0.0.1 in this run is the ADAPTIX server's own runtime" in _text(at)
+    assert [o for o in next(s for s in at.selectbox if s.label == "Repair engine").options] == \
+        ["Rules only (deterministic)"]                                            # no Gemini key: not offered
+    btn = lambda: next(b for b in at.button if b.label == "Apply Changes & Start Recovery")   # noqa: E731
+    assert btn().disabled                                                          # nothing selected yet
+    at.session_state["mc_changes_service"] = [{"kind": "remove", "field": "email"},
+                                              {"kind": "rename", "field": "email", "new": "mail"}]
+    at.run()
+    assert any("contradictory" in e.value for e in at.error)
+    at.checkbox(key="mc_confirm_service").check().run()
+    assert btn().disabled                                                          # invalid set: still disabled
+    at.session_state["mc_changes_service"] = [{"kind": "rename", "field": "customer_id", "new": "client_id"},
+                                              {"kind": "rename", "field": "email", "new": "contact_email"}]
+    at.run()
+    assert not btn().disabled
+    btn().click().run()
+    assert not at.exception, at.exception
+    text = _text(at)
+    assert "VERIFIED RECOVERY" in text and "RULES ONLY" in text
+    assert "REAL GEMINI CALL" not in text and "LOCAL LLM CALL" not in text        # labels follow the real engine
+    assert "Repair proposal · rules planner" in text
+    assert any("Reset" == b.label for b in at.button) or "Reset this experiment" in str(at.expander)

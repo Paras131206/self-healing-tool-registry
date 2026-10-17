@@ -108,6 +108,47 @@ Other ports: `LOCAL_SERVICE_PORT=8770 STREAMLIT_PORT=8502 scripts/run_local_demo
 8. Open **Local database (read-only viewer)**. The `customers` table now has a `client_id` column. **Structure** shows the foreign key from `orders` now pointing at `customers.client_id`, and **Migration history** lists the rename with its timestamp. The viewer cannot write, and only lists the demo tables.
 9. Open **Reset Demo**, confirm, and the baseline is back. Then show **Add a required field** or **Remove a field**: both end **SAFELY BLOCKED**, because ADAPTIX does not invent values or deleted data.
 
+## Multi-Change Lab (several changes in one experiment)
+
+Open **Demonstrate (not production) → Multi-Change Lab** and choose **Local demo database (this machine)**:
+
+1. Choose a repair engine: **Rules only** or **Local LLM · qwen2.5:3b-instruct**. Cloud models are not offered for this target, and a run never switches engines.
+2. Load a guided scenario, or add up to 6 changes yourself. Supported changes:
+   * rename `customer_id`, `city` or `created_on`;
+   * widen `loyalty_points` from integer to number;
+   * add an optional column;
+   * add one required lookup field;
+   * remove `city`, `email` or `created_on`.
+
+   Enum changes are only available on the controlled test API target.
+3. Check the preview: the current schema, the combined schema and the field-level diff. Contradictory sets are rejected here, before anything changes.
+4. Tick the confirmation and click **Apply Changes & Start Recovery**. A backup is taken first, then all migrations run together. If any migration fails, the backup is restored.
+5. Read the result:
+   * the per-change outcome: repaired, compatible, refused, proposed but not applied, or applied then rolled back;
+   * the model's real work: provider, model, tokens, time, the sanitized context it received, its diagnosis and its structured plan;
+   * the validation checks;
+   * the version table;
+   * the failing call and the repaired call;
+   * the business checks.
+
+Guided local scenarios and their measured outcomes with the local model:
+
+| Scenario | Result |
+|---|---|
+| Rename the key and the `city` column | VERIFIED RECOVERY |
+| Rename + type widening + optional column | VERIFIED RECOVERY |
+| Rename + required lookup field | **PARTIAL RECOVERY**: the rename is repaired, and the required field is reverted on the demo database |
+| Remove `email` + rename | **PARTIAL RECOVERY**: the first attempt is rolled back because `email` is missing. The database is then restored from the backup with only the rename re-applied, and the rename is repaired |
+
+**Partial recovery** is on by default ("If only some changes can be fixed safely…"). When some changes have safe fixes and others don't:
+* the safe fixes are applied as a versioned patch;
+* the unsafe changes are reverted on the controlled target;
+* the original call is verified again.
+
+The first attempt is shown and kept in the evidence. Reverting is possible only because ADAPTIX controls this target; a real provider's change cannot be undone. Untick the option to stop the whole experiment instead (nothing applied).
+
+Every experiment starts from the baseline. If the database already has changes, the page asks you to reset it first, with confirmation. The same page also offers **Controlled test API**, which is the target the deployed site uses.
+
 ## Scenarios
 
 | Scenario | Real database change | Expected |

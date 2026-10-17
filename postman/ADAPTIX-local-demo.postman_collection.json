@@ -1,0 +1,113 @@
+{
+  "info": {
+    "name": "ADAPTIX local demo - customer API",
+    "_postman_id": "6f3d6a52-6a1f-4d55-9c0e-adaptix-local",
+    "description": "GET and POST checks for the LOCAL DEMO customer API (python -m adaptix.localdemo service).\n\nRequest 2 reads the live contract and stores the current lookup field (customer_id at baseline, or the renamed field after a schema change, e.g. client_id) in the collection variable keyField. The POST requests then use it, and request 4 checks what happens when a caller still sends the OLD field.\n\nImport into Postman (File > Import), or run from a terminal:\n  npx newman run postman/ADAPTIX-local-demo.postman_collection.json\nChange baseUrl if the service runs on another port.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://127.0.0.1:8766"},
+    {"key": "keyField", "value": "customer_id"},
+    {"key": "customerId", "value": "101"}
+  ],
+  "item": [
+    {
+      "name": "1 GET health",
+      "request": {"method": "GET", "url": "{{baseUrl}}/health"},
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('status 200', () => pm.response.to.have.status(200));",
+        "pm.test('service and demo database are ready', () => pm.expect(pm.response.json().status).to.eql('ok'));",
+        "pm.test('answers within 1 s', () => pm.expect(pm.response.responseTime).to.be.below(1000));"
+      ]}}]
+    },
+    {
+      "name": "2 GET live contract (OpenAPI)",
+      "request": {"method": "GET", "url": "{{baseUrl}}/contract/openapi.json"},
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('status 200', () => pm.response.to.have.status(200));",
+        "const doc = pm.response.json();",
+        "pm.test('OpenAPI 3.1 document', () => pm.expect(doc.openapi).to.eql('3.1.0'));",
+        "const op = doc.paths['/customers/lookup'].post;",
+        "const req = op.requestBody.content['application/json'].schema;",
+        "pm.test('exactly one required lookup field', () => pm.expect(req.required).to.have.lengthOf(1));",
+        "pm.test('unknown request fields are refused (additionalProperties false)', () => pm.expect(req.additionalProperties).to.eql(false));",
+        "const key = req.required[0];",
+        "pm.collectionVariables.set('keyField', key);",
+        "console.log('live lookup field:', key, req.properties[key]['x-renamed-from'] ? '(renamed from ' + req.properties[key]['x-renamed-from'] + ')' : '(baseline)');",
+        "const cust = op.responses['200'].content['application/json'].schema.properties.customer;",
+        "pm.test('response documents name and email', () => pm.expect(cust.properties).to.include.keys('full_name', 'email'));"
+      ]}}]
+    },
+    {
+      "name": "3 POST lookup with the live field",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\"{{keyField}}\": {{customerId}}}"},
+        "url": "{{baseUrl}}/customers/lookup"
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "const key = pm.collectionVariables.get('keyField');",
+        "pm.test('status 200', () => pm.response.to.have.status(200));",
+        "const b = pm.response.json();",
+        "pm.test('status is found', () => pm.expect(b.status).to.eql('found'));",
+        "pm.test('the API applied exactly the value sent', () => pm.expect(b.query[key]).to.eql(101));",
+        "pm.test('customer identity: id 101, Asha Verma', () => { pm.expect(b.customer[key]).to.eql(101); pm.expect(b.customer.full_name).to.eql('Asha Verma'); });",
+        "pm.test('required field email present', () => pm.expect(b.customer.email).to.eql('asha.verma@example.com'));"
+      ]}}]
+    },
+    {
+      "name": "4 POST lookup with the original field (customer_id)",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\"customer_id\": {{customerId}}}"},
+        "url": "{{baseUrl}}/customers/lookup"
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "const key = pm.collectionVariables.get('keyField');",
+        "if (key === 'customer_id') {",
+        "  pm.test('baseline schema: the original request still works (200)', () => pm.response.to.have.status(200));",
+        "} else {",
+        "  pm.test('schema drift: the original request is rejected with 422', () => pm.response.to.have.status(422));",
+        "  const d = pm.response.json().detail;",
+        "  pm.test('422 names the new required field as missing', () => pm.expect(d.some(e => e.type === 'missing' && e.loc[1] === key)).to.be.true);",
+        "  pm.test('422 names customer_id as no longer permitted', () => pm.expect(d.some(e => e.type === 'extra_forbidden' && e.loc[1] === 'customer_id')).to.be.true);",
+        "}"
+      ]}}]
+    },
+    {
+      "name": "5 POST lookup for a customer that does not exist",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\"{{keyField}}\": 99999}"},
+        "url": "{{baseUrl}}/customers/lookup"
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('status 404', () => pm.response.to.have.status(404));",
+        "pm.test('status is not_found', () => pm.expect(pm.response.json().status).to.eql('not_found'));"
+      ]}}]
+    },
+    {
+      "name": "6 POST lookup with the wrong type",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\"{{keyField}}\": \"101\"}"},
+        "url": "{{baseUrl}}/customers/lookup"
+      },
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('status 422', () => pm.response.to.have.status(422));",
+        "pm.test('type error reported for the field', () => pm.expect(pm.response.json().detail[0].type).to.eql('integer_type'));"
+      ]}}]
+    },
+    {
+      "name": "7 GET on the POST-only lookup route",
+      "request": {"method": "GET", "url": "{{baseUrl}}/customers/lookup"},
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test('status 405 Method Not Allowed', () => pm.response.to.have.status(405));"
+      ]}}]
+    }
+  ]
+}

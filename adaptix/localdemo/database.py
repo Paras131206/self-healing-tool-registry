@@ -379,6 +379,19 @@ class DemoDatabase:
             self._record(c, "change_type", {"table": TABLE, "column": column, "from": "INTEGER", "to": "REAL"})
         return {"table": TABLE, "column": column, "from": "INTEGER", "to": "REAL"}
 
+    def add_optional_column(self, column: str) -> dict:
+        """Add a nullable TEXT column (not part of the lookup key): a compatible, additive change."""
+        self.require_marker()
+        cols = [c["name"] for c in self.columns()]
+        if not new_name_ok(column) or column in cols:
+            raise DemoDatabaseError(f"{column!r} is not a valid new column name")
+        with self._tx() as c:
+            c.execute(f'ALTER TABLE "{TABLE}" ADD COLUMN "{column}" TEXT')
+            c.execute("INSERT INTO column_docs (table_name, column_name, description) VALUES (?,?,?)",
+                      (TABLE, column, "Optional field added by a schema change."))
+            self._record(c, "add_optional_field", {"table": TABLE, "column": column})
+        return {"table": TABLE, "column": column, "optional": True}
+
     def add_required_lookup_field(self, column: str = "region_code") -> dict:
         """Add a NOT NULL column and make it part of the lookup key: the API then requires it on every request."""
         self.require_marker()

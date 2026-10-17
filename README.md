@@ -60,6 +60,7 @@ What is never treated as schema drift: 401/403 (credential problems; failover on
 | `adaptix/integrations.py` | Integration Health statuses (VERIFIED only from recorded real requests) |
 | `adaptix/review.py` | product review metrics: per-environment rates and non-overlapping phase timings from stored records |
 | `adaptix/llm/ollama.py` | Local LLM provider (Ollama on loopback only, structured output, no cloud fallback) |
+| `adaptix/multichange.py` | Multi-Change Lab: change model and conflict checks, combined schema, controlled targets, one experiment runner on the existing pipeline, per-change outcomes, session-scoped reset |
 | `adaptix/localdemo/` | LOCAL DEMO: SQLite demo database + migrations, the local customer API, the Local Demo Lab controller, CLI |
 | `adaptix/verify.py` | task verification (status/echo outputs, or the authoritative response schema for read operations) |
 | `adaptix/api.py` | FastAPI backend: production `/api/*`, simulation `/api/sim/*`, monitoring, integrations, OpenAI adapter |
@@ -113,6 +114,7 @@ To point the dashboard at a separately deployed API, set `ADAPTIX_API_URL` and `
 | **Recovery Center** | every incident as a timeline: failure → schema → drift → proposal → validation → patch → retry → verified or rolled back |
 | **Evidence & Scorecard** | honest pipeline counts (proposed ≠ validated ≠ applied ≠ verified), one incident in detail, audit history, schema change log, exports |
 | **Drift Demo** | choose a change, confirm, and watch ADAPTIX detect and repair it automatically on its own controlled test API (REAL API TEST) |
+| **Multi-Change Lab** | pick several schema changes (rename, type change, optional/required field, removal, nested rename, enum values), preview the combined schema, confirm once, and watch the whole recovery. When only some changes are safe, ADAPTIX can repair those and revert the unsafe ones on the controlled target (PARTIAL RECOVERY, first attempt kept). The run shows: drift diff, the selected engine's actual proposal (rules, real Gemini, or a local model), validation, patch, retry, business verification and a per-change outcome. Deployed: ADAPTIX's controlled test API only. Locally: also the local demo database |
 | **Simulation Lab** | the same idea with in-process simulated APIs, plus the baseline-vs-ADAPTIX evaluation |
 | **System Health** | Gemini, credentials and external API status |
 | **Product Review** | for reviewers: the problem, the pipeline, the technology, performance and evidence computed from recorded runs, and a feedback form that exports (nothing is submitted). It has no sidebar tab: the ADAPTIX logo opens it (`ADAPTIX_REVIEW_URL` if set, otherwise this app's `?view=review`) |

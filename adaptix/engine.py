@@ -470,7 +470,9 @@ class Engine:
                 inc.add("plan", f"LLM planner {label} proposed {sum(1 for m in res.plan.mappings if m.source_arg)} "
                                 f"mapping(s), confidence {res.plan.confidence:.2f}", "info",
                         {"diagnosis": res.plan.diagnosis, "risks": res.plan.compatibility_risks,
-                         "mappings": [m.model_dump() for m in res.plan.mappings], "real_model": res.real})
+                         "evidence": res.plan.evidence, "confidence": res.plan.confidence,
+                         "mappings": [m.model_dump() for m in res.plan.mappings], "real_model": res.real,
+                         "context_sent": redact(ctx)})
                 extra = [m for m in res.plan.mappings if m.source_arg and m.target_field in field_unresolved]
                 plan = plan.model_copy(update={
                     "source": "llm", "mappings": plan.mappings + extra,
@@ -480,7 +482,8 @@ class Engine:
                     "compatibility_risks": plan.compatibility_risks + res.plan.compatibility_risks})
             else:
                 inc.add("plan", f"LLM planner {label} unavailable: {res.error_category}", "warn",
-                        {"error_category": res.error_category})
+                        {"error_category": res.error_category, "error": scrub(res.error or "")[:300],
+                         "context_sent": redact(ctx)})
         return plan
 
     def _repair_request(self, spec, td, args, inc, idem, deadline, old, new, report, sent):

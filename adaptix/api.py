@@ -102,6 +102,27 @@ class LocalPreviewIn(BaseModel):
     params: dict[str, str] = Field(default_factory=dict)
 
 
+class MultiPreviewIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    target: Literal["service", "local"] = "service"
+    changes: list[dict] = Field(default_factory=list, max_length=12)
+
+
+class MultiRunIn(MultiPreviewIn):
+    engine: Literal["none", "gemini", "local"] = "none"
+    partial: bool = True         # if only some changes are safe: fix those and revert the unsafe ones (controlled)
+    confirm: bool = False
+    session: str = Field(pattern=r"^[a-z0-9]{6,32}$")
+
+
+class MultiResetIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    target: Literal["service", "local"] = "service"
+    job_id: str = Field(pattern=r"^mcx_[a-f0-9]{10}$")
+    session: str = Field(pattern=r"^[a-z0-9]{6,32}$")
+    confirm: bool = False
+
+
 class ConfirmIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     confirm: bool = False
@@ -165,6 +186,8 @@ class State:
         if settings.local_demo:
             from .localdemo.lab import LocalLab
             self.local_lab = LocalLab(settings)
+        from .multichange import MultiChangeLab
+        self.multichange = MultiChangeLab(self)
         self.monitor = Monitor(self.engine, settings)
         self.started = time.time()
         self.lock = threading.Lock()
@@ -191,9 +214,9 @@ class State:
                 self.test_service = svc
         return self.test_service
 
-    def _remember_app(self, name: str, scenario: str, phase: str, has_keys: bool):
+    def _remember_app(self, name: str, scenario: str | None, phase: str, has_keys: bool, spec: dict | None = None):
         apps = json.loads(self.test_storage.get_meta("svc_apps") or "{}")
-        apps[name] = {"scenario": scenario, "phase": phase, "has_keys": has_keys}
+        apps[name] = {"scenario": scenario, "phase": phase, "has_keys": has_keys, **({"spec": spec} if spec else {})}
         self.test_storage.set_meta("svc_apps", json.dumps(apps))
 
     def sim_llm(self, choice: str):
@@ -547,6 +570,49 @@ def create_app(state: State | None = None) -> FastAPI:
         if st.demo_jobs.running():
             raise HTTPException(409, {"error": "busy", "detail": "a demo run is in progress"})
         return demo_mod.reset(st)
+
+    # ---------------------------------------------------------------- Multi-Change Simulation Lab
+    from . import multichange as mc_mod
+
+    def mc_call(fn, *a):
+        try:
+            return fn(*a)
+        except mc_mod.ChangeError as e:
+            raise HTTPException(409, {"error": "not_started", "detail": str(e)})
+
+    @app.get("/api/multichange/catalog", dependencies=[Depends(admin)])
+    def mc_catalog():
+        return st.multichange.catalog()
+
+    @app.post("/api/multichange/preview", dependencies=[Depends(admin)])
+    def mc_preview(body: MultiPreviewIn):
+        if body.target == "local" and st.local_lab is None:
+            raise HTTPException(404, {"error": "not_found", "detail": "the local demo is not enabled here"})
+        return st.multichange.preview(body.target, body.changes)
+
+    @app.post("/api/multichange/run", dependencies=[Depends(admin)])
+    def mc_run(body: MultiRunIn):
+        """Apply ONE confirmed change set to a controlled target; recovery then runs automatically."""
+        if not body.confirm:
+            raise HTTPException(422, {"error": "confirmation_required",
+                                      "detail": "send confirm=true (Apply Changes & Start Recovery)"})
+        if body.target == "local" and st.local_lab is None:
+            raise HTTPException(404, {"error": "not_found", "detail": "the local demo is not enabled here"})
+        return mc_call(st.multichange.start, body.target, body.changes, body.engine, True, body.session,
+                       body.partial)
+
+    @app.get("/api/multichange/jobs/{job_id}", dependencies=[Depends(admin)])
+    def mc_job(job_id: str, session: str = Query(..., pattern=r"^[a-z0-9]{6,32}$")):
+        j = st.multichange.job(job_id, session)
+        if j is None:
+            raise HTTPException(404, {"error": "not_found", "detail": job_id})
+        return j
+
+    @app.post("/api/multichange/reset", dependencies=[Depends(admin)])
+    def mc_reset(body: MultiResetIn):
+        if body.target == "local" and st.local_lab is None:
+            raise HTTPException(404, {"error": "not_found", "detail": "the local demo is not enabled here"})
+        return mc_call(st.multichange.reset, body.target, body.job_id, body.session, body.confirm)
 
     # ---------------------------------------------------------------- cross-environment views (labelled)
     def worlds(environment: list[str] | None = None) -> dict:

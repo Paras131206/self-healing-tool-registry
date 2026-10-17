@@ -146,6 +146,14 @@ class TestService:
             from .simulation import BY_ID, build_app
             name = p[len("/admin/m/"):]
             body = await req.json()
+            if body.get("spec") is not None:                 # a Multi-Change Lab schema (validated again here)
+                from .multichange import ChangeError, build_spec_app
+                try:
+                    self._matrix[name] = build_spec_app(body["spec"])
+                except ChangeError as e:
+                    return await JSONResponse({"detail": str(e)}, status_code=422)(scope, receive, send)
+                self._matrix_specs[name] = {"spec": body["spec"]}
+                return await JSONResponse({"installed": name, "custom": True})(scope, receive, send)
             s = BY_ID.get(body.get("scenario"))
             if s is None or body.get("phase") not in ("v1", "v2"):
                 return await JSONResponse({"detail": "unknown scenario or phase"}, status_code=422)(scope, receive, send)
@@ -225,14 +233,35 @@ class TestService:
     def install(self, name: str, scenario: str, phase: str, keys: dict | None = None) -> dict:
         out = self.admin("POST", f"/admin/m/{name}", {"scenario": scenario, "phase": phase, "keys": keys})
         if self.on_install:
-            self.on_install(name, scenario, phase, bool(keys))
+            self.on_install(name, scenario, phase, bool(keys), None)
         return out
+
+    def install_spec(self, name: str, spec: dict) -> dict:
+        """Serve a Multi-Change Lab schema at /m/<name> (spec = {"path", "fields"}, validated server-side)."""
+        out = self.admin("POST", f"/admin/m/{name}", {"spec": spec})
+        if self.on_install:
+            self.on_install(name, None, "custom", False, spec)
+        return out
+
+    def remove(self, name: str):
+        """Stop serving one app (a Multi-Change Lab reset affects only that experiment)."""
+        self._matrix.pop(name, None)
+        self._matrix_specs.pop(name, None)
 
     def restore(self, apps: dict) -> int:
         """Re-create scenario APIs after a restart (definitions are deterministic; keyed apps are not restored)."""
         from .simulation import BY_ID, build_app
         n = 0
         for name, spec in apps.items():
+            if spec.get("spec"):
+                from .multichange import ChangeError, build_spec_app
+                try:
+                    self._matrix[name] = build_spec_app(spec["spec"])
+                    self._matrix_specs[name] = {"spec": spec["spec"]}
+                    n += 1
+                except ChangeError:
+                    pass
+                continue
             s = BY_ID.get(spec.get("scenario"))
             if s is not None and not spec.get("has_keys") and spec.get("phase") in ("v1", "v2"):
                 self._matrix[name] = build_app(s, spec["phase"])

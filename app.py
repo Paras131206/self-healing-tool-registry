@@ -25,7 +25,7 @@ def _reload_changed_views():
 _reload_changed_views()
 
 from adaptix.config import get_settings  # noqa: E402
-from views import chaos, demo, drift, evidence, health, localdemo, monitoring, overview, recovery, review, tools  # noqa: E402,E501
+from views import chaos, demo, drift, evidence, health, localdemo, monitoring, multichange, overview, recovery, review, tools  # noqa: E402,E501
 from views.common import ROOT, api, inject_css, local_demo_enabled, safe_call, theme_toggle  # noqa: E402
 
 st.set_page_config(page_title="ADAPTIX · Autonomous API Resilience", page_icon=":material/autorenew:",
@@ -43,7 +43,7 @@ def recovery_center():
 
 RENDER = {"overview": overview.render, "monitoring": monitoring.render, "tools": tools.render, "drift": drift.render,
           "recovery": recovery_center, "evidence": evidence.render, "demo": demo.render, "chaos": chaos.render,
-          "health": health.render, "review": review.render}
+          "health": health.render, "review": review.render, "multichange": multichange.render}
 if LOCAL:
     RENDER["localdemo"] = localdemo.render
 P = st.Page
@@ -56,6 +56,7 @@ pages = {
     "evidence": P(evidence.render, title="Evidence & Scorecard", icon=":material/gavel:", url_path="evidence"),
     "demo": P(demo.render, title="Drift Demo", icon=":material/bolt:", url_path="drift-demo"),
     "chaos": P(chaos.render, title="Simulation Lab", icon=":material/science:", url_path="simulation-lab"),
+    "multichange": P(multichange.render, title="Multi-Change Lab", icon=":material/stacks:", url_path="multi-change"),
     "health": P(health.render, title="System Health", icon=":material/verified:", url_path="integrations"),
 }
 if LOCAL:   # local-only page: present only when ADAPTIX_LOCAL_DEMO=1 is set on this machine
@@ -64,7 +65,7 @@ theme_toggle([p.url_path for p in pages.values()])
 st.session_state["_pages"] = pages
 nav = st.navigation({
     "Monitor and repair": [pages[k] for k in ("overview", "monitoring", "tools", "drift", "recovery", "evidence")],
-    "Demonstrate (not production)": [pages["demo"], pages["chaos"]],
+    "Demonstrate (not production)": [pages["demo"], pages["multichange"], pages["chaos"]],
     **({"Local only (this machine)": [pages["localdemo"]]} if LOCAL else {}),
     "System": [pages["health"]]})
 
