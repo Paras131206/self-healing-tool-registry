@@ -3,11 +3,30 @@
 Three separate environments, each with its own database: REAL API (/api, real providers), REAL API TEST
 (/api/test, the controlled demo service over real HTTP) and SIMULATION (/api/sim). Pages that show records
 offer one shared environment selector."""
+import importlib
+import os
+import sys
+
 import streamlit as st
 
-from adaptix.config import get_settings
-from views import chaos, demo, drift, evidence, health, localdemo, monitoring, overview, recovery, review, tools
-from views.common import ROOT, api, inject_css, local_demo_enabled, safe_call, theme_toggle
+
+def _reload_changed_views():
+    """Streamlit re-runs this script on every interaction but keeps imported modules. After a hosted update
+    (Streamlit Cloud pulls new code into the running process) the page modules in views/ would stay stale, so
+    reload them when their file changed since they were loaded: views.common first, then the pages."""
+    mods = {n: m for n, m in sys.modules.items()
+            if (n == "views" or n.startswith("views.")) and getattr(m, "__file__", None)}
+    if any(getattr(m, "_ax_mtime", None) != os.path.getmtime(m.__file__) for m in mods.values()):
+        for n in sorted(mods, key=lambda n: (n != "views.common", n)):
+            importlib.reload(mods[n])
+            mods[n]._ax_mtime = os.path.getmtime(mods[n].__file__)
+
+
+_reload_changed_views()
+
+from adaptix.config import get_settings  # noqa: E402
+from views import chaos, demo, drift, evidence, health, localdemo, monitoring, overview, recovery, review, tools  # noqa: E402,E501
+from views.common import ROOT, api, inject_css, local_demo_enabled, safe_call, theme_toggle  # noqa: E402
 
 st.set_page_config(page_title="ADAPTIX · Autonomous API Resilience", page_icon=":material/autorenew:",
                    layout="wide", initial_sidebar_state="expanded")
