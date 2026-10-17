@@ -52,7 +52,8 @@ def test_navigation_titles():
     assert titles == ["Overview", "API Registry", "Tool Registry", "Schema Drift Explorer", "Recovery Center",
                       "Evidence & Scorecard", "Drift Demo", "Simulation Lab", "System Health", "Local Demo Lab"]
     assert 'if LOCAL:' in src and "link=review.review_link(" in src and "REPO_URL" not in src   # logo -> review page
-    assert "Product Review" not in src and 'st.query_params.get("view") == review.VIEW' in src     # no sidebar tab
+    assert "Product Review" not in src and 'st.query_params.get("view") == review.VIEW' in src     # not a nav page
+    assert "Product overview</a>" in src and 'f"?view={review.VIEW}"' in src                         # sidebar link
     every_view = "\n".join(p.read_text() for p in (ROOT / "views").glob("*.py")) + src
     for gone in ("Real API Monitoring", "Live Project Integration", "Production Audit", "Schema Changes",
                  "All changes", "Baseline (no repair)", "livedb", "run_limit", "max_runs",

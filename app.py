@@ -50,6 +50,13 @@ nav = st.navigation({
     "System": [pages["health"]]})
 
 with st.sidebar:
+    # the product overview (review) page: same destination as the logo, opened in this tab
+    from html import escape
+    on_review = st.query_params.get("view") == review.VIEW
+    href = get_settings().review_url or f"?view={review.VIEW}"
+    st.markdown(f'<a class="ax-overview-link{" current" if on_review else ""}" href="{escape(href)}" target="_self"'
+                f'{" aria-current=\"page\"" if on_review else ""}>'
+                f'<span aria-hidden="true">★</span> Product overview</a>', unsafe_allow_html=True)
     h = safe_call(api, "GET", "/api/health")
     if h:
         llm = h["llm"]
@@ -58,8 +65,8 @@ with st.sidebar:
         st.caption(f"Real APIs: {h['real_tools']} · approved hosts: {len(h['allowed_hosts'])}")
     st.caption("Team Runtime Terrors · PS-01")
 
-# tests can render a page directly; visitors always go through the navigation. The product review page has no
-# sidebar entry: only the ADAPTIX logo opens it (?view=review)
+# tests can render a page directly; visitors always go through the navigation. The product review page is not a
+# navigation page: the ADAPTIX logo and the sidebar's "Product overview" link open it (?view=review)
 if "_force_page" in st.session_state:
     RENDER[st.session_state["_force_page"]]()
 elif st.query_params.get("view") == review.VIEW:

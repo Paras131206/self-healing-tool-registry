@@ -144,6 +144,14 @@ THEME_CSS = """
 .ax-theme a[aria-current="true"] { background: #2563EB; color: #FFFFFF !important; }
 .ax-theme a:focus-visible { outline: 3px solid #93C5FD; outline-offset: 2px; }
 .st-key-ax_theme_store { display: none; }
+.ax-overview-link { display: flex; align-items: center; gap: .55rem; margin: .1rem 0 .9rem 0; padding: .45rem .75rem;
+  border-radius: .5rem; border: 1px solid rgba(147,197,253,.35); background: rgba(37,99,235,.14);
+  color: #E2E8F0 !important; text-decoration: none !important; font-size: .9rem; font-weight: 600; }
+.ax-overview-link span { color: #93C5FD; }
+.ax-overview-link:hover { background: rgba(37,99,235,.28); }
+.ax-overview-link.current { background: #2563EB; border-color: #2563EB; }
+.ax-overview-link.current span { color: #FFFFFF; }
+.ax-overview-link:focus-visible { outline: 3px solid #93C5FD; outline-offset: 2px; }
 [data-testid="stSidebarUserContent"] { padding-bottom: 3.5rem; }   /* keep the last sidebar line clear of the toggle */
 /* sidebar text fades out under the toggle instead of being cut by it */
 [data-testid="stSidebar"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 58px;
