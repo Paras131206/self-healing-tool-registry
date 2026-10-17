@@ -134,14 +134,13 @@ TOKENS = {
 }
 THEME_CSS = """
 <style>
-.ax-theme { position: fixed; top: .55rem; right: 9rem; z-index: 999991; display: flex; gap: 2px; padding: 2px;
-  border-radius: 999px; border: 1px solid var(--ax-pill-border); background: var(--ax-pill);
-  box-shadow: 0 1px 3px rgba(15,23,42,.12); font-size: .8rem; }
-.ax-theme a { padding: .2rem .65rem; border-radius: 999px; text-decoration: none !important; color: var(--ax-muted);
-  font-weight: 600; line-height: 1.4; }
-.ax-theme a[aria-current="true"] { background: var(--ax-accent); color: var(--ax-pill) !important; }
+.ax-theme { position: fixed; top: 17px; left: 176px; z-index: 1000002; display: flex; gap: 2px; padding: 2px;
+  border-radius: 999px; border: 1px solid rgba(226,232,240,.18); background: rgba(15,26,46,.92); }
+.ax-theme a { width: 26px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; text-decoration: none !important; color: #CBD5E1 !important; font-size: .95rem; line-height: 1; }
+.ax-theme a:hover { background: rgba(226,232,240,.12); }
+.ax-theme a[aria-current="true"] { background: #2563EB; color: #FFFFFF !important; }
 .ax-theme a:focus-visible { outline: 3px solid #93C5FD; outline-offset: 2px; }
-@media (max-width: 640px) { .ax-theme { right: 3.2rem; } .ax-theme a span { display: none; } }
 .st-key-ax_theme_store { display: none; }
 [data-testid="stGraphVizChart"] svg { %s }
 </style>
@@ -188,7 +187,7 @@ def theme_toggle(page_paths: list[str]):
     for key, label, icon in (("light", "Light", "☀"), ("dark", "Dark", "☾")):
         href = "?" + urlencode({**params, "embed_options": f"{key}_theme"})
         links.append(f'<a href="{escape(href)}" target="_self" aria-current="{str(mode == key).lower()}" '
-                     f'title="Switch to {label.lower()} mode">{icon}<span> {label}</span></a>')
+                     f'title="{label} mode" aria-label="Switch to {label.lower()} mode">{icon}</a>')
     st.markdown(f'<nav class="ax-theme" aria-label="Colour theme">{"".join(links)}</nav>', unsafe_allow_html=True)
     # Streamlit hides embed_options from st.query_params, so the (hidden) script checks the address itself
     with st.container(key="ax_theme_store"):
