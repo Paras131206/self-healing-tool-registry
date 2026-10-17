@@ -24,7 +24,8 @@ Rules you must follow:
   unresolved_fields. You never supply values, credentials, URLs or code.
 - Use source_arg = null when no argument clearly carries the same meaning. Never map one argument twice.
 - transform must be one of: none, to_int, to_float, to_str, to_bool, iso_date - and only if lossless.
-- evidence must be a short quote copied VERBATIM from the schema text in the DATA block. Only when the schema
+- evidence must be a short quote copied VERBATIM from the schema text in the DATA block. If a field lists
+  x-renamed-from, that is the documented rename: quote it exactly as "x-renamed-from: <name>". Only when the schema
   has no descriptive text and the two names are clearly the same name in another spelling (user_id / userId),
   write evidence as "field names: <argument> -> <field>"; that is accepted only for near-identical names.
   Otherwise, if you cannot quote supporting text, set source_arg to null.

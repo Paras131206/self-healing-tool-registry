@@ -283,9 +283,15 @@ def llm_label(llm_meta: dict | None) -> dict:
     if not llm_meta:
         return {"used": False, "label": "not used"}
     real = bool(llm_meta.get("real"))
-    kind = "REAL Gemini request" if real and llm_meta.get("provider") == "gemini" else \
-        ("real provider request" if real else "MOCK (not a real model)" if "mock" in str(llm_meta.get("provider"))
-         else "not a real request (test double)")
+    prov = str(llm_meta.get("provider"))
+    if not real:
+        kind = "MOCK (not a real model)" if "mock" in prov else "not a real request (test double)"
+    elif prov == "ollama":
+        kind = "LOCAL LLM request (Ollama, on this machine)"
+    elif prov == "gemini":
+        kind = "REAL Gemini request"
+    else:
+        kind = "real provider request"
     return {"used": True, "label": kind, "real": real, "provider": llm_meta.get("provider"),
             "model": llm_meta.get("model"), "ok": llm_meta.get("ok"), "error_category": llm_meta.get("error_category"),
             "prompt_tokens": llm_meta.get("prompt_tokens"), "output_tokens": llm_meta.get("output_tokens")}

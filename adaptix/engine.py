@@ -91,6 +91,9 @@ class Engine:
         # llm_required: the LLM must propose every changed mapping (the rules plan is recorded only as a
         # cross-check). If the LLM is unavailable or its output is invalid, the repair stops - no fallback.
         self.llm_required = False
+        # business_check(response) -> [check dicts]: optional business assertions (e.g. the LOCAL DEMO checks the
+        # returned customer's identity). They are added to every verification; a 2xx alone never verifies a task.
+        self.business_check = None
 
     def set_llm(self, llm):
         if self.mode != "simulation" and getattr(llm, "name", "").startswith("mock"):
@@ -137,7 +140,14 @@ class Engine:
 
     def verify(self, spec: ToolSpec, td: ToolDef, body, request: dict):
         op = self.storage.get_schema(td.schema_signature) if not td.response_map else None
-        return _verify(spec, td, body, request, op)
+        v = _verify(spec, td, body, request, op)
+        if self.business_check is not None and v.ok:
+            try:
+                extra = list(self.business_check(body))
+            except Exception as e:                   # an assertion that cannot run is a failed assertion
+                extra = [{"name": "business assertions ran", "ok": False, "detail": scrub(str(e))[:120]}]
+            v = v.model_copy(update={"checks": v.checks + extra, "ok": all(c["ok"] for c in v.checks + extra)})
+        return v
 
     # ================================================================ registration
     def _declared_operation(self, spec: ToolSpec) -> Operation:
@@ -441,7 +451,13 @@ class Engine:
             used = {m.source_arg for m in plan.mappings}
             ctx = {"tool": spec.name, "drift_summary": report.summary,
                    "unresolved_fields": [{"field": loc, "type": new.fields[loc].label(),
-                                          "description": new.fields[loc].description}
+                                          "description": new.fields[loc].description,
+                                          # documented rename, quotable verbatim as "x-renamed-from: <name>"
+                                          "x-renamed-from": new.fields[loc].renamed_from,
+                                          "quotable_evidence": [q for q in (
+                                              new.fields[loc].description,
+                                              f"x-renamed-from: {new.fields[loc].renamed_from}"
+                                              if new.fields[loc].renamed_from else None) if q]}
                                          for loc in field_unresolved if loc in new.fields],
                    "candidate_arguments": [{"name": a, "type": py_type(v)} for a, v in args.items() if a not in used],
                    "api_errors": [{"type": e.get("type"), "loc": e.get("loc"), "msg": e.get("msg")}

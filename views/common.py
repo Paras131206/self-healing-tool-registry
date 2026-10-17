@@ -184,15 +184,28 @@ def mutated(*keep: str):
     st.cache_data.clear()
 
 
-ENV_PREFIX = {"REAL API": "/api", "REAL API TEST": "/api/test", "SIMULATION": "/api/sim"}
+# fixed mapping (never mutated at import time); the LOCAL DEMO choice is only OFFERED when it is enabled
+ENV_PREFIX = {"REAL API": "/api", "REAL API TEST": "/api/test", "SIMULATION": "/api/sim", "LOCAL DEMO": "/api/local"}
 ENV_NOTE = {"REAL API": "real external providers (production records)",
             "REAL API TEST": "controlled test service run by ADAPTIX (real HTTP on 127.0.0.1)",
-            "SIMULATION": "in-process simulated APIs (no network)"}
+            "SIMULATION": "in-process simulated APIs (no network)",
+            "LOCAL DEMO": "local demo on this machine: real SQLite database, real local customer API, local LLM"}
+
+
+def local_demo_enabled() -> bool:
+    """True only when ADAPTIX_LOCAL_DEMO=1 is set in this machine's OS environment (never on a deployment)."""
+    from adaptix.config import get_settings
+    return get_settings().local_demo
+
+
+
+def env_options() -> list[str]:
+    return [e for e in ENV_PREFIX if e != "LOCAL DEMO" or local_demo_enabled()]
 
 
 def env_picker(key: str, label: str = "Environment") -> str:
     """One shared environment selector; the choice is remembered across pages (same session key)."""
-    options = list(ENV_PREFIX)
+    options = env_options()
     cur = st.session_state.get("env_choice", "REAL API")
     env = st.radio(label, options, index=options.index(cur) if cur in options else 0, horizontal=True, key=key,
                    help="REAL API: your registered providers · REAL API TEST: the controlled demo service · "

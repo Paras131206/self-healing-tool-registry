@@ -6,7 +6,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 ROOT = Path(__file__).resolve().parent.parent
-PAGES = ["overview", "monitoring", "tools", "drift", "recovery", "evidence", "demo", "chaos", "health"]
+PAGES = ["overview", "monitoring", "tools", "drift", "recovery", "evidence", "demo", "chaos", "health", "review"]
 
 
 @pytest.fixture(autouse=True)
@@ -16,6 +16,8 @@ def _isolated_db(tmp_path, monkeypatch):
     monkeypatch.setenv("ADAPTIX_TEST_DB_PATH", str(tmp_path / "ui-test.db"))
     monkeypatch.setenv("ADAPTIX_MONITOR_ENABLED", "false")
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("ADAPTIX_LOCAL_DEMO", raising=False)
+    monkeypatch.delenv("ADAPTIX_REVIEW_URL", raising=False)
     from adaptix.config import get_settings
     get_settings.cache_clear()
     import streamlit as st
@@ -48,7 +50,9 @@ def test_navigation_titles():
     src = (ROOT / "app.py").read_text()
     titles = re.findall(r'P\([^)]*?title="([^"]+)"', src)
     assert titles == ["Overview", "API Registry", "Tool Registry", "Schema Drift Explorer", "Recovery Center",
-                      "Evidence & Scorecard", "Drift Demo", "Simulation Lab", "System Health"]
+                      "Evidence & Scorecard", "Drift Demo", "Simulation Lab", "System Health", "Local Demo Lab"]
+    assert 'if LOCAL:' in src and "link=review.review_link(" in src and "REPO_URL" not in src   # logo -> review page
+    assert "Product Review" not in src and 'st.query_params.get("view") == review.VIEW' in src     # no sidebar tab
     every_view = "\n".join(p.read_text() for p in (ROOT / "views").glob("*.py")) + src
     for gone in ("Real API Monitoring", "Live Project Integration", "Production Audit", "Schema Changes",
                  "All changes", "Baseline (no repair)", "livedb", "run_limit", "max_runs",
@@ -191,3 +195,113 @@ def test_unavailable_schema_is_never_shown_as_no_drift():
     text = _text(at)
     assert "Unable to retrieve the authoritative schema" in text and "Automatic repair is paused" in text
     assert "No schema drift detected" not in text and not at.success
+
+
+def test_public_ui_has_no_local_controls_or_database_paths():
+    """Without ADAPTIX_LOCAL_DEMO=1 (the deployed site), no local page, route or database detail is exposed."""
+    at = _page("health")
+    assert not at.exception, at.exception
+    text = _text(at)
+    for leak in ("data/adaptix", ".db", "database `", "API in-process", "API: in-process", "Production YES"):
+        assert leak not in text, leak
+    assert "Real API monitoring" in text
+    at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=60).run()
+    assert not at.exception, at.exception
+    from views.common import _client, env_options
+    assert "LOCAL DEMO" not in env_options()
+    assert _client()[0].get("/api/local-demo/status").status_code == 404
+    at.session_state["_force_page"] = "localdemo"
+    at.run()
+    assert at.exception and "localdemo" in str(at.exception[0].value)   # the page is not even registered
+
+
+def test_review_page_without_records_says_not_measured_and_does_not_submit_feedback():
+    at = _page("review")
+    assert not at.exception, at.exception
+    text = _text(at)
+    assert "When APIs Break, ADAPTIX Works to Restore Them." in text
+    assert "Not measured yet" in text and "Illustrative example" in text
+    assert "What ADAPTIX does not promise" in text and "LOCAL_DEMO.md" in text           # local demo not reachable here
+    assert "Nothing is sent or stored" in text
+    form_btn = next(b for b in at.button if b.label == "Prepare feedback")
+    form_btn.click().run()
+    assert any("at least 5 characters" in e.value for e in at.error)                    # validated, nothing claimed
+    assert not any("submitted" in s.value.lower() and "not submitted" not in s.value.lower() for s in at.success)
+
+
+def test_review_page_metrics_come_from_recorded_runs():
+    at = _page("chaos")
+    at.checkbox(key="sim_confirm").check().run()
+    at.button[0].click().run()                                      # one recorded SIMULATION recovery
+    at.session_state["_force_page"] = "review"
+    at.run()
+    assert not at.exception, at.exception
+    text = _text(at)
+    assert "SIMULATION" in text and "very small sample (1)" in str([d.value for d in at.dataframe])
+
+
+def test_local_demo_lab_renders_when_enabled_and_blocks_changes_until_ready(tmp_path, monkeypatch):
+    monkeypatch.setenv("ADAPTIX_LOCAL_DEMO", "1")
+    monkeypatch.setenv("ADAPTIX_LOCAL_DEMO_DB", str(tmp_path / "local-demo.db"))
+    monkeypatch.setenv("ADAPTIX_LOCAL_DB_PATH", str(tmp_path / "adaptix-local.db"))
+    monkeypatch.setenv("ADAPTIX_LOCAL_SERVICE_URL", "http://127.0.0.1:9")       # nothing listens: not ready
+    monkeypatch.setenv("OLLAMA_URL", "http://127.0.0.1:9")
+    from adaptix.config import get_settings
+    get_settings.cache_clear()
+    import streamlit as st
+    st.cache_resource.clear()
+    at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=60)
+    at.session_state["_force_page"] = "localdemo"
+    at.run()
+    assert not at.exception, at.exception
+    text = _text(at)
+    assert "LOCAL DEMO · this machine only" in text and "python -m adaptix.localdemo db init" in text
+    assert "ollama.com/download" in text
+    btn = next(b for b in at.button if b.label == "Introduce Drift & Run Recovery")
+    assert btn.disabled                                                           # not ready, not confirmed
+    assert "Local LLM** `qwen2.5:3b-instruct`" in text                            # its real model name, not Gemini
+
+
+@pytest.mark.parametrize("page", ["overview", "tools", "drift", "recovery", "evidence"])
+def test_every_record_page_works_with_the_local_demo_environment(page, tmp_path, monkeypatch):
+    monkeypatch.setenv("ADAPTIX_LOCAL_DEMO", "1")
+    monkeypatch.setenv("ADAPTIX_LOCAL_DEMO_DB", str(tmp_path / "local-demo.db"))
+    monkeypatch.setenv("ADAPTIX_LOCAL_DB_PATH", str(tmp_path / "adaptix-local.db"))
+    monkeypatch.setenv("ADAPTIX_LOCAL_SERVICE_URL", "http://127.0.0.1:9")
+    monkeypatch.setenv("OLLAMA_URL", "http://127.0.0.1:9")
+    from adaptix.config import get_settings
+    get_settings.cache_clear()
+    import streamlit as st
+    st.cache_resource.clear()
+    at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=60)
+    at.session_state["_force_page"] = page
+    at.session_state["env_choice"] = "LOCAL DEMO"
+    at.run()
+    assert not at.exception, (page, at.exception)
+
+
+def _patch_panel_app():
+    import views.localdemo as ld
+
+    def fake_api(method, path, **kw):
+        if "/patch/" in path:
+            return {"error_before": None, "request_after": None, "model": None, "model_proposal": None, "plan": None,
+                    "validation": None, "applied_version": None, "versions": [], "rolled_back": False}
+        return {"status": "ok", "tool_version": 2, "duration_ms": 3.0, "sent_as": {"client_id": 101},
+                "business_checks": []}
+    ld.api = fake_api
+    ld.patch_story("inc_x", key="k")
+
+
+def test_patch_story_panel_resends_the_original_request():
+    """The Local Demo Lab's patch panel: the re-send button must not collide with its own session state."""
+    import views.localdemo as ld
+    real_api = ld.api
+    try:
+        at = AppTest.from_function(_patch_panel_app).run()
+        assert not at.exception, at.exception
+        next(b for b in at.button if "Send the original request again" in b.label).click().run()
+        assert not at.exception, at.exception
+        assert any("Succeeded with tool v2" in s.value for s in at.success)
+    finally:
+        ld.api = real_api

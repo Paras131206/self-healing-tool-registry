@@ -17,7 +17,8 @@ def versions_panel(prefix: str, name: str, current_version: int):
                                       for p in v["patch"])
         st.markdown(line)
         if v["incident_id"] and st.button("Open incident", key=f"vinc-{name}-{v['version']}"):
-            env = {"/api": "REAL API", "/api/test": "REAL API TEST", "/api/sim": "SIMULATION"}[prefix]
+            env = {"/api": "REAL API", "/api/test": "REAL API TEST", "/api/sim": "SIMULATION",
+                   "/api/local": "LOCAL DEMO"}[prefix]
             go("recovery", incident_id=v["incident_id"], env_choice=env)
     c1, c2 = st.columns(2)
     if c1.button("Roll back current version", key=f"rb-{name}", icon=":material/undo:", disabled=current_version <= 1,

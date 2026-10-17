@@ -89,6 +89,19 @@ class DemoRunIn(BaseModel):
     confirm: bool = False
 
 
+class LocalRunIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    scenario: Literal["rename", "type", "required", "remove"]
+    params: dict[str, str] = Field(default_factory=dict)
+    confirm: bool = False
+
+
+class LocalPreviewIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    scenario: Literal["rename", "type", "required", "remove"]
+    params: dict[str, str] = Field(default_factory=dict)
+
+
 class ConfirmIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     confirm: bool = False
@@ -147,6 +160,11 @@ class State:
         from .demo import Jobs
         self.demo_jobs = Jobs()
         self._svc_lock = threading.RLock()
+        # LOCAL DEMO: only when ADAPTIX_LOCAL_DEMO=1 is set in the OS environment (never on a deployment)
+        self.local_lab = None
+        if settings.local_demo:
+            from .localdemo.lab import LocalLab
+            self.local_lab = LocalLab(settings)
         self.monitor = Monitor(self.engine, settings)
         self.started = time.time()
         self.lock = threading.Lock()
@@ -188,6 +206,77 @@ class State:
                                           "detail": "real Gemini is not configured on this server (GEMINI_API_KEY)"})
             return self.llm
         return NoProvider()
+
+
+def _mount_local_demo(app: FastAPI, st: State, admin):
+    """LOCAL DEMO routes. Mounted only when the local demo is enabled on this machine."""
+    from .localdemo.lab import SCENARIOS, LabError
+    lab = st.local_lab
+
+    def call(fn, *a):
+        try:
+            return fn(*a)
+        except LabError as e:
+            raise HTTPException(409, {"error": "not_started", "detail": str(e)})
+        except Exception as e:
+            raise HTTPException(409, {"error": "local_demo_error", "detail": scrub(str(e))[:200]})
+
+    @app.get("/api/local-demo/status", dependencies=[Depends(admin)])
+    def local_status():
+        return lab.status() | {"scenarios": SCENARIOS}
+
+    @app.get("/api/local-demo/contracts", dependencies=[Depends(admin)])
+    def local_contracts():
+        return call(lab.contracts)
+
+    @app.post("/api/local-demo/preview", dependencies=[Depends(admin)])
+    def local_preview(body: LocalPreviewIn):
+        return call(lab.preview, body.scenario, body.params)
+
+    @app.post("/api/local-demo/run", dependencies=[Depends(admin)])
+    def local_run(body: LocalRunIn):
+        """Introduce ONE confirmed schema change on the local demo database; recovery then runs automatically."""
+        if not body.confirm:
+            raise HTTPException(422, {"error": "confirmation_required",
+                                      "detail": "a schema change needs explicit confirmation (confirm=true)"})
+        return call(lab.start, body.scenario, body.params, True)
+
+    @app.get("/api/local-demo/jobs/{job_id}", dependencies=[Depends(admin)])
+    def local_job(job_id: str):
+        j = lab.job(job_id)
+        if j is None:
+            raise HTTPException(404, {"error": "not_found", "detail": job_id})
+        return j
+
+    @app.post("/api/local-demo/reset", dependencies=[Depends(admin)])
+    def local_reset(body: ConfirmIn):
+        if not body.confirm:
+            raise HTTPException(422, {"error": "confirmation_required", "detail": "send confirm=true to reset"})
+        return call(lab.reset, True)
+
+    @app.get("/api/local-demo/db/tables", dependencies=[Depends(admin)])
+    def local_db_tables():
+        return [call(lab.db.table_info, t) for t in lab.db.BROWSABLE]
+
+    @app.get("/api/local-demo/db/tables/{table}", dependencies=[Depends(admin)])
+    def local_db_rows(table: str, limit: int = Query(25, ge=1, le=200), offset: int = Query(0, ge=0),
+                      customer: int | None = Query(None, ge=0)):
+        return call(lab.db.browse, table, limit, offset, customer)
+
+    @app.get("/api/local-demo/patch/{incident_id}", dependencies=[Depends(admin)])
+    def local_patch(incident_id: str):
+        return call(lab.patch_story, incident_id)
+
+    @app.post("/api/local-demo/call", dependencies=[Depends(admin)])
+    def local_call():
+        """Send the original business request again through the current (possibly patched) tool version."""
+        return call(lab.call_original)
+
+    @app.post("/api/local-demo/model-check", dependencies=[Depends(admin)])
+    def local_model_check():
+        r = lab.llm.check()
+        return {"ok": r.ok, "real": r.real, "model": r.model, "error_category": r.error_category,
+                "error": r.error, "duration_ms": r.duration_ms, "ts": r.ts}
 
 
 def create_app(state: State | None = None) -> FastAPI:
@@ -389,6 +478,9 @@ def create_app(state: State | None = None) -> FastAPI:
     mount("/api", st.storage, st.engine)
     mount("/api/test", st.test_storage, st.test_engine)
     mount("/api/sim", st.sim_storage, st.sim_engine)
+    if st.local_lab is not None:
+        mount("/api/local", st.local_lab.storage, st.local_lab.engine)
+        _mount_local_demo(app, st, admin)
 
     # ---------------------------------------------------------------- REAL_API_TEST: controlled test service
     @app.get("/api/test/status", dependencies=[Depends(admin)])
@@ -459,7 +551,24 @@ def create_app(state: State | None = None) -> FastAPI:
     # ---------------------------------------------------------------- cross-environment views (labelled)
     def worlds(environment: list[str] | None = None) -> dict:
         all_w = {"LIVE_API": st.storage, "REAL_API_TEST": st.test_storage, "SIMULATION": st.sim_storage}
+        if st.local_lab is not None:
+            all_w["LOCAL_DEMO"] = st.local_lab.storage
         return {k: v for k, v in all_w.items() if not environment or k in environment}
+
+    @app.get("/api/review/metrics", dependencies=[Depends(admin)])
+    def review_metrics():
+        """Per-environment metrics for the product review page, computed from stored records only."""
+        from . import review
+        out, stages = {}, {}
+        for env, store in worlds().items():
+            incs = [i.model_dump(mode="json") for i in store.incidents(limit=2000)]
+            ev = store.evidence(limit=2000)
+            out[env] = review.environment_metrics(env, incs, ev) | {"latest": review.latest_evidence(ev, 8)}
+            for k, v in review.stage_counts(incs).items():
+                stages[k] = stages.get(k, 0) + v
+        return {"environments": out, "stages": stages, "local_demo_enabled": st.local_lab is not None,
+                "llm": {"provider": st.llm.status().get("provider"), "model": st.llm.status().get("model"),
+                        "connectivity": st.llm.status().get("connectivity")}}
 
     @app.get("/api/changes", dependencies=[Depends(admin)])
     def list_changes(q: str = "", environment: list[str] = Query(default=[]), change_type: list[str] = Query(default=[]),

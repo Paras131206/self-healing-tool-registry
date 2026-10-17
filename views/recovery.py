@@ -23,7 +23,7 @@ def timeline(inc: dict):
 PHASES = [("Failure detected", "request"), ("Schema fetched", "discover"), ("Drift identified", "diff"),
           ("Repair proposed", "plan"), ("Repair validated", "validate"), ("Change applied", "apply"),
           ("Retry executed", "retry"), ("Task verified / rolled back", "final")]
-ENV_PREFIX = {"REAL API": "/api", "REAL API TEST": "/api/test", "SIMULATION": "/api/sim"}
+from views.common import ENV_PREFIX  # noqa: E402  (one shared environment map)
 
 
 def phases(inc: dict) -> list[dict]:
@@ -87,7 +87,8 @@ def render(prefix: str | None = None):
         env = env_picker("rc_env")
         prefix = ENV_PREFIX[env]
     sim = prefix == "/api/sim"
-    title = {"/api": "Recovery Center", "/api/test": "Real API Test Records", "/api/sim": "Simulation Records"}[prefix]
+    title = {"/api": "Recovery Center", "/api/test": "Real API Test Records", "/api/sim": "Simulation Records",
+             "/api/local": "Local Demo Records"}[prefix]
     header(title, "Every incident, step by step",
            "Failure detected → schema fetched → drift identified → repair proposed → validated → applied → retry → "
            "task verified or rolled back. Each phase shows its actual state, time and evidence.")

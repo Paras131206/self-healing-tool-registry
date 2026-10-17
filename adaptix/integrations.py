@@ -100,9 +100,13 @@ def external_apis(state) -> dict:
 
 
 def report(state) -> dict:
-    return {"mode": {"production": {"database": state.settings.db_path, "upstreams": "real providers only (SSRF guard)",
-                                    "llm": state.engine.llm.status().get("provider")},
-                     "simulation": {"database": state.settings.sim_db_path, "upstreams": "in-process sim:// only",
+    # public-facing summary: no file paths, connection strings or deployment internals
+    llm = state.engine.llm.status()
+    return {"mode": {"production": {"upstreams": "real providers only, every request checked by the egress guard",
+                                    "llm": llm.get("provider"), "llm_connectivity": llm.get("connectivity"),
+                                    "approved_hosts": len(state.settings.allowed_hosts),
+                                    "real_tools": len(state.storage.tools())},
+                     "simulation": {"upstreams": "in-process simulated APIs only (never a real provider)",
                                     "llm": "selectable per run: rules only, mock (labelled), or real Gemini"}},
             "gemini": gemini(state), "external": external_apis(state),
             "monitor": state.monitor.status() if state.monitor else {"scheduler_running": False}}

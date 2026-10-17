@@ -17,6 +17,7 @@ from .security import redact, scrub
 
 SOURCE = {"LIVE_API": "real external provider over HTTPS (SSRF-guarded)",
           "REAL_API_TEST": "controlled test service: real HTTP server on 127.0.0.1 run by ADAPTIX",
+          "LOCAL_DEMO": "local demo: real SQLite database and real customer API on this machine, local LLM via Ollama",
           "SIMULATION": "in-process simulated API (no network)"}
 
 

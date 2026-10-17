@@ -4,6 +4,8 @@
   pinning, verified TLS, validated redirects, per-host pacing). sim:// endpoints are refused.
 * real_api_test: the controlled test service ADAPTIX runs itself (a real HTTP server on loopback), through
   the same guard; only that exact address is exempt from the allowlist. sim:// is refused.
+* local_demo: the LOCAL DEMO customer API on this machine (loopback), through the same guard; only its exact
+  configured address is exempt. Never enabled on a deployment (ADAPTIX_LOCAL_DEMO is read from the OS env only).
 * simulation: in-process simulated APIs (sim://name) only. Nothing leaves the process; any real URL is
   refused, so a simulated schema mutation can never be sent to a real provider.
 """
@@ -16,7 +18,7 @@ import httpx
 
 from .netguard import EgressDenied, GuardedHTTP
 
-MODES = ("production", "real_api_test", "simulation")
+MODES = ("production", "real_api_test", "simulation", "local_demo")
 
 
 class Upstreams:

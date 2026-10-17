@@ -11,3 +11,8 @@ data/
 .env
 .env.*
 !.env.example
+# local demo: database, backups and model files never go to Git
+data/local-demo*.db
+data/local-demo-backups/
+*.gguf
+models/

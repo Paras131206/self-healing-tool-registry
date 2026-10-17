@@ -66,6 +66,17 @@ class Settings:
     monitor_enabled: bool = True
     monitor_interval_s: int = 3600               # default schema-check interval per real tool
     monitor_min_interval_s: int = 300            # floor for any configured interval
+    # LOCAL DEMO (off unless ADAPTIX_LOCAL_DEMO=1 is set in the OS environment on the developer's machine)
+    local_demo: bool = False
+    local_demo_db: str = "data/local-demo.db"            # the disposable sample business database
+    local_db_path: str = "data/adaptix-local.db"         # ADAPTIX's own records for the LOCAL_DEMO environment
+    local_service_url: str = "http://127.0.0.1:8766"     # the local customer API (loopback only)
+    ollama_url: str = "http://127.0.0.1:11434"           # local Ollama server (loopback only)
+    local_llm_model: str = "qwen2.5:3b-instruct"
+    local_llm_timeout_s: float = 90.0
+    local_llm_max_tokens: int = 600
+    # product review page: where the logo leads (unset = this app's own review page)
+    review_url: str | None = None
 
 
 def _hosts(raw: str | None) -> tuple[str, ...]:
@@ -108,4 +119,14 @@ def get_settings() -> Settings:
         host_min_interval_s=_float("ADAPTIX_HOST_MIN_INTERVAL_SECONDS", 1.0),
         monitor_enabled=_bool("ADAPTIX_MONITOR_ENABLED", True),
         monitor_interval_s=max(_int("ADAPTIX_MONITOR_INTERVAL_SECONDS", 3600), 300),
+        # read from the OS environment only (never from hosted secrets), so a deployment cannot enable it by accident
+        local_demo=os.environ.get("ADAPTIX_LOCAL_DEMO", "").strip().lower() in ("1", "true", "yes", "on"),
+        local_demo_db=os.environ.get("ADAPTIX_LOCAL_DEMO_DB") or "data/local-demo.db",
+        local_db_path=os.environ.get("ADAPTIX_LOCAL_DB_PATH") or "data/adaptix-local.db",
+        local_service_url=os.environ.get("ADAPTIX_LOCAL_SERVICE_URL") or "http://127.0.0.1:8766",
+        ollama_url=os.environ.get("OLLAMA_URL") or "http://127.0.0.1:11434",
+        local_llm_model=os.environ.get("LOCAL_LLM_MODEL") or "qwen2.5:3b-instruct",
+        local_llm_timeout_s=float(os.environ.get("LOCAL_LLM_TIMEOUT_SECONDS") or 90.0),
+        local_llm_max_tokens=int(os.environ.get("LOCAL_LLM_MAX_TOKENS") or 600),
+        review_url=env("ADAPTIX_REVIEW_URL") or None,
     )

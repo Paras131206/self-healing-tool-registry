@@ -1,7 +1,7 @@
 """Integration Health: Gemini and every external API, with honest statuses."""
 import streamlit as st
 
-from views.common import api, api_mode, badge, header, ist, ist_time, safe_call
+from views.common import api, badge, header, ist, ist_time, safe_call
 
 
 def _row(label: str, item: dict):
@@ -20,14 +20,17 @@ def render():
         return
     st.subheader("Modes")
     m = rep["mode"]
+    p = m["production"]
+    llm_state = {"verified": "VERIFIED", "configured_unverified": "CONFIGURED", "failing": "FAILED",
+                 "not_configured": "NOT RUN"}.get(p.get("llm_connectivity"), "NOT RUN")
     c1, c2 = st.columns(2)
     with c1.container(border=True):
-        st.markdown(f"**Production** {badge('YES')}", unsafe_allow_html=True)
-        st.caption(f"database `{m['production']['database']}` · {m['production']['upstreams']} · "
-                   f"LLM `{m['production']['llm']}` · API {api_mode()}")
+        st.markdown("**Real API monitoring**", unsafe_allow_html=True)
+        st.caption(f"{p['upstreams']} · approved hosts: {p['approved_hosts']} · registered real APIs: {p['real_tools']}")
+        st.markdown(f"Repair model: `{p['llm']}` {badge(llm_state)}", unsafe_allow_html=True)
     with c2.container(border=True):
-        st.markdown("**Simulation Lab** (separate)")
-        st.caption(f"database `{m['simulation']['database']}` · {m['simulation']['upstreams']} · {m['simulation']['llm']}")
+        st.markdown("**Simulation Lab** (separate records)")
+        st.caption(f"{m['simulation']['upstreams']} · {m['simulation']['llm']}")
 
     g = rep["gemini"]
     st.subheader(f"Google Gemini · `{g['model']}`")

@@ -58,6 +58,9 @@ What is never treated as schema drift: 401/403 (credential problems; failover on
 | `adaptix/evidence.py` | evidence records per run, scorecard with denominators, CSV export |
 | `adaptix/changes.py` | the schema change log (inside Evidence & Scorecard): rows from stored records, server-side filters, sorting and pagination |
 | `adaptix/integrations.py` | Integration Health statuses (VERIFIED only from recorded real requests) |
+| `adaptix/review.py` | product review metrics: per-environment rates and non-overlapping phase timings from stored records |
+| `adaptix/llm/ollama.py` | Local LLM provider (Ollama on loopback only, structured output, no cloud fallback) |
+| `adaptix/localdemo/` | LOCAL DEMO: SQLite demo database + migrations, the local customer API, the Local Demo Lab controller, CLI |
 | `adaptix/verify.py` | task verification (status/echo outputs, or the authoritative response schema for read operations) |
 | `adaptix/api.py` | FastAPI backend: production `/api/*`, simulation `/api/sim/*`, monitoring, integrations, OpenAI adapter |
 | `adaptix/simulation.py`, `adaptix/mock_api.py` | Simulation Lab: 21 drift/failure scenarios against isolated simulated APIs |
@@ -112,6 +115,8 @@ To point the dashboard at a separately deployed API, set `ADAPTIX_API_URL` and `
 | **Drift Demo** | choose a change, confirm, and watch ADAPTIX detect and repair it automatically on its own controlled test API (REAL API TEST) |
 | **Simulation Lab** | the same idea with in-process simulated APIs, plus the baseline-vs-ADAPTIX evaluation |
 | **System Health** | Gemini, credentials and external API status |
+| **Product Review** | for reviewers: the problem, the pipeline, the technology, performance and evidence computed from recorded runs, and a feedback form that exports (nothing is submitted). It has no sidebar tab: the ADAPTIX logo opens it (`ADAPTIX_REVIEW_URL` if set, otherwise this app's `?view=review`) |
+| **Local Demo Lab** | local machine only (`ADAPTIX_LOCAL_DEMO=1`): a real SQLite database, a real local customer API and a local LLM (Ollama). Never shown on the deployed site. See [LOCAL_DEMO.md](LOCAL_DEMO.md) |
 
 Times are shown in Indian Standard Time (records are stored in UTC). All pages read the same records through the API, and a shared environment selector (REAL API / REAL API TEST / SIMULATION) keeps them aligned. There is no automatic fault injection: a demo change happens only when you choose it and confirm.
 

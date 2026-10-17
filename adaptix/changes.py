@@ -15,7 +15,7 @@ CHANGE_LABEL = {"renamed": "Field renamed", "moved": "Nested schema changed", "t
 REPAIR_STATES = ["Detected", "Analyzed", "Proposed", "Validated", "Applied", "Verified", "Failed", "Rolled back",
                  "Requires review"]
 VERIFICATION_STATES = ["Verified", "Failed", "Not run"]
-ENV_LABEL = {"LIVE_API": "REAL API", "REAL_API_TEST": "REAL API TEST", "SIMULATION": "SIMULATION"}
+ENV_LABEL = {"LIVE_API": "REAL API", "REAL_API_TEST": "REAL API TEST", "SIMULATION": "SIMULATION", "LOCAL_DEMO": "LOCAL DEMO"}
 
 
 def change_label(c: dict, ambiguous: bool) -> str:

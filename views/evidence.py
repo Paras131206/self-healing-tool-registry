@@ -119,7 +119,8 @@ def render():
             st.caption("No audit events yet.")
     with st.expander("Schema change log"):
         from views.changes import render_table
-        render_table([{"REAL API": "LIVE_API", "REAL API TEST": "REAL_API_TEST", "SIMULATION": "SIMULATION"}[env]],
+        render_table([{"REAL API": "LIVE_API", "REAL API TEST": "REAL_API_TEST", "SIMULATION": "SIMULATION",
+                       "LOCAL DEMO": "LOCAL_DEMO"}[env]],
                      key=f"ev-chg-{env}")
     bundle = safe_call(api, "GET", f"{prefix}/evidence/export.json")
     csv_text = safe_call(api, "GET", f"{prefix}/evidence/export.csv")
