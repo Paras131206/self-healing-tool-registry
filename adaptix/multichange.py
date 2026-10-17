@@ -58,13 +58,13 @@ GUIDED = {
     "rename_retype": {"title": "Rename + type change", "changes": [
         {"kind": "rename", "field": "customer_id", "new": "client_id"},
         {"kind": "retype", "field": "customer_id", "to": "str"}]},
-    "rename_required": {"title": "Rename + new required field (should be refused)", "changes": [
+    "rename_required": {"title": "Rename + new required field (one unsafe change)", "changes": [
         {"kind": "rename", "field": "customer_id", "new": "client_id"},
         {"kind": "add_required", "field": "region_code", "to": "str"}]},
     "remove_optional_rename": {"title": "Remove an unused field + rename", "changes": [
         {"kind": "remove", "field": "notes"},
         {"kind": "rename", "field": "customer_id", "new": "client_id"}]},
-    "nested_enum": {"title": "Nested rename + enum change (partly unsafe)", "changes": [
+    "nested_enum": {"title": "Nested rename + enum change (one unsafe change)", "changes": [
         {"kind": "rename", "field": "address.city", "new": "town"},
         {"kind": "enum", "field": "tier", "values": "standard|GOLD|platinum"}]},
 }
@@ -80,10 +80,10 @@ LOCAL_GUIDED = {
         {"kind": "rename", "field": "customer_id", "new": "client_id"},
         {"kind": "retype", "field": "loyalty_points", "to": "float"},
         {"kind": "add_optional", "field": "nickname", "to": "str"}]},
-    "rename_required": {"title": "Rename + required lookup field (should be refused)", "changes": [
+    "rename_required": {"title": "Rename + required lookup field (one unsafe change)", "changes": [
         {"kind": "rename", "field": "customer_id", "new": "client_id"},
         {"kind": "add_required", "field": "region_code", "to": "str"}]},
-    "remove_email_rename": {"title": "Remove email + rename (should be refused)", "changes": [
+    "remove_email_rename": {"title": "Remove email + rename (one unsafe change)", "changes": [
         {"kind": "remove", "field": "email"},
         {"kind": "rename", "field": "customer_id", "new": "client_id"}]},
 }
